@@ -1,108 +1,204 @@
-README.mdx
-Code snippet
-
-# Medallion Architecture with 1000 Genomes Data 🧬
-
-This project demonstrates the **Medallion Architecture** by building a data pipeline to process and transform public genetic data from the 1000 Genomes Project.
+Medallion Architecture with GWAS Catalog Data ✨
+This project demonstrates the Medallion Architecture by building a data pipeline to process and transform public genetic data from the GWAS Catalog. This architecture is a design pattern used to organize data into logical layers as it moves through a data lake.
 
 The pipeline processes data through three distinct layers:
-* **Bronze Layer:** Raw, unstructured data straight from the source.
-* **Silver Layer:** Cleaned, validated, and enriched data.
-* **Gold Layer:** Aggregated, business-ready data optimized for analysis and reporting.
 
----
+Bronze Layer: The raw, ingested data directly from the source.
 
-## 🚀 The Data: 1000 Genomes Project
+Silver Layer: The cleaned, structured, and validated data.
 
-The dataset used is a subset of the **1000 Genomes Project Phase 3**, which is a widely-used repository for studying human genetic variation.
+Gold Layer: The aggregated, business-ready data optimized for analysis.
 
-We will be working with two primary files:
-1.  A **Variant Call Format (VCF)** file (`ALL.chr22.vcf.gz`), which contains raw genetic sequence information for individuals on chromosome 22.
-2.  A **sample metadata** file (`1000_genomes_samples.txt`), which provides demographic and population information for each individual.
+The Data: GWAS Catalog
+We are using data from the GWAS Catalog maintained by the European Bioinformatics Institute (EBI) and the National Human Genome Research Institute (NHGRI). This catalog is a public database of published genome-wide association studies.
 
----
+Source: https://www.ebi.ac.uk/gwas/api/search/downloads/alternative
 
-## 🛠️ Project Setup
+Project Setup
+1. Prerequisites
+You'll need a Python environment with uv to manage packages.
 
-### 1. **Prerequisites**
+Install uv: https://astral.sh/uv/install
 
-You'll need `uv` to manage the project environment. If you don't have it, you can install it from the official website.
-* [Install `uv`](https://astral.sh/uv/install)
-
-### 2. **Environment Setup**
-
-Create a dedicated virtual environment for the project to keep dependencies isolated.
-
-```bash
+2. Environment Setup
+Create a dedicated virtual environment for the project.
+```
 uv venv
-Activate the environment:
-
-macOS/Linux:
-
-Bash
-
 source .venv/bin/activate
-Windows:
+```
+3. Install Dependencies
+We need a few key libraries for data manipulation and storage.
 
-PowerShell
+```uv install pandas pyarrow duckdb
+``` 
+Project Structure
+The project is organized to reflect the layers of the Medallion Architecture.
 
-.venv\Scripts\activate
-3. Dependencies
-This project uses standard Python libraries. No extra dependencies are needed.
-
-📦 Project Structure
-The project is organized to reflect the three layers of the Medallion Architecture.
-
+```
 .
 ├── .venv/                         # Virtual environment
 ├── data/
-│   ├── bronze/                    # Raw data from the source
+│   ├── bronze/                    # Raw, original data
 │   ├── silver/                    # Cleaned and enriched data
 │   └── gold/                      # Aggregated and finalized data
 ├── scripts/
-│   ├── bronze_ingest.py           # Script to download raw data
-│   ├── silver_process.py          # Script to clean and enrich data
-│   └── gold_transform.py          # Script to aggregate data for analysis
-├── README.mdx                     # This documentation file
-└── requirements.txt               # Project dependencies
-🪜 The Pipeline Steps
+│   ├── bronze_ingest.py           # Ingestion script
+│   ├── silver_process.py          # Cleaning and structuring script
+│   └── gold_transform.py          # Aggregation script
+├── README.mdx                     # Project documentation
+└── .gitignore                     # Git ignore file
+```
+
+The Pipeline Steps
 Step 1: Bronze Layer - Data Ingestion
-This step involves downloading the raw, compressed VCF file and the metadata file. We will use a simple Python script to handle the download, which represents the first layer of our architecture.
+This step downloads the raw GWAS Catalog data. It is the entry point for our data.
 
-Script: scripts/bronze_ingest.py
+scripts/bronze_ingest.py
+```python
+import requests
+import os
 
-Output: data/bronze/ALL.chr22.vcf.gz and data/bronze/1000_genomes_samples.txt
+url = "https://www.ebi.ac.uk/gwas/api/search/downloads/alternative"
+filename = "gwas_catalog.tsv"
+bronze_path = os.path.join("data", "bronze")
+os.makedirs(bronze_path, exist_ok=True)
+local_filepath = os.path.join(bronze_path, filename)
 
-Step 2: Silver Layer - Data Processing & Enrichment
-In this step, we will take the raw files from the bronze layer, decompress the VCF file, and parse its contents. We will then join the variant data with the sample metadata to enrich the dataset.
+def download_file(url, local_filepath):
+    if os.path.exists(local_filepath):
+        print(f"File '{local_filepath}' already exists. Skipping download.")
+        return
+    print(f"Downloading {url} to {local_filepath}...")
+    try:
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        with open(local_filepath, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        print("Download successful!")
+    except requests.exceptions.RequestException as e:
+        print(f"Error during download: {e}")
 
-Script: scripts/silver_process.py
+if __name__ == "__main__":
+    download_file(url, local_filepath)
 
-Output: A structured, tabular file (e.g., a Parquet file) in the data/silver/ directory.
+```
+Step 2: Silver Layer - Data Processing & Cleaning
+Here, we take the raw data, clean it, and structure it into a more usable format (Parquet).
 
-Step 3: Gold Layer - Data Transformation
-This final layer aggregates the clean data from the silver layer into a business-ready format. This could involve calculating variant frequencies, summarizing data by population, or creating other insights.
+scripts/silver_process.py
+```python
+import pandas as pd
+import os
+import pyarrow as pa
+import pyarrow.parquet as pq
 
-Script: scripts/gold_transform.py
+input_dir = os.path.join("data", "bronze")
+output_dir = os.path.join("data", "silver")
+os.makedirs(output_dir, exist_ok=True)
+input_file = os.path.join(input_dir, "gwas_catalog.tsv")
+output_file = os.path.join(output_dir, "gwas_catalog_clean.parquet")
 
-Output: Final, optimized data for analysis, ready for consumption by BI tools or further research.
+def process_gwas_data():
+    print("Reading raw data from the Bronze layer...")
+    try:
+        gwas_df = pd.read_csv(input_file, sep='\t')
+    except FileNotFoundError:
+        print(f"Error: Raw data file not found at {input_file}. Please ensure the file is in the 'data/bronze' directory.")
+        return
+    print("Cleaning and structuring the data...")
+    cleaned_df = gwas_df[[
+        'DATE ADDED TO CATALOG', 'JOURNAL', 'DISEASE/TRAIT', 'MAPPED_TRAIT',
+        'SNPS', 'P-VALUE', 'OR or BETA'
+    ]].copy()
+    cleaned_df['DATE ADDED TO CATALOG'] = pd.to_datetime(cleaned_df['DATE ADDED TO CATALOG'])
+    cleaned_df.rename(columns={
+        'DATE ADDED TO CATALOG': 'date_added', 'JOURNAL': 'journal',
+        'DISEASE/TRAIT': 'disease', 'MAPPED_TRAIT': 'mapped_trait',
+        'SNPS': 'snps', 'P-VALUE': 'p_value', 'OR or BETA': 'or_or_beta'
+    }, inplace=True)
+    arrow_table = pa.Table.from_pandas(cleaned_df)
+    print(f"Writing structured data to the Silver layer at {output_file}...")
+    pq.write_table(arrow_table, output_file)
+    print("Silver layer processing complete!")
 
-📝 Blog Post Outline
-This project is the basis for a blog post series on the Medallion Architecture.
+if __name__ == "__main__":
+    process_gwas_data()
 
-Introduction: What is the Medallion Architecture, and why is it important?
+```
+Step 3: Gold Layer - Aggregation & Analysis
+This is the final stage where we aggregate the clean data into a business-ready format and prepare it for analysis or visualization.
 
-Bronze Layer: A walk-through of the data ingestion process.
+scripts/gold_transform.py   
 
-Silver Layer: The importance of data cleaning and enrichment.
+```python
+import pandas as pd
+import os
+import pyarrow as pa
+import pyarrow.parquet as pq
 
-Gold Layer: Creating value from clean data through aggregation.
+silver_dir = os.path.join("data", "silver")
+gold_dir = os.path.join("data", "gold")
+os.makedirs(gold_dir, exist_ok=True)
+input_file = os.path.join(silver_dir, "gwas_catalog_clean.parquet")
+output_journal_file = os.path.join(gold_dir, "journal_study_counts.parquet")
+output_disease_file = os.path.join(gold_dir, "disease_study_counts.parquet")
 
-Conclusion: A summary of the pipeline and the benefits of the Medallion Architecture.
+def aggregate_gwas_data():
+    print("Reading data from the Silver layer...")
+    try:
+        clean_df = pd.read_parquet(input_file)
+    except FileNotFoundError:
+        print(f"Error: Silver layer file not found at {input_file}. Please run the silver_process.py script first.")
+        return
+    print("Aggregating study counts by journal...")
+    journal_counts_df = clean_df.groupby('journal').size().reset_index(name='study_count')
+    journal_counts_df.sort_values(by='study_count', ascending=False, inplace=True)
+    journal_table = pa.Table.from_pandas(journal_counts_df)
+    pq.write_table(journal_table, output_journal_file)
+    print(f"Saved journal study counts to {output_journal_file}")
+    print("Aggregating study counts by disease/trait...")
+    disease_counts_df = clean_df.groupby('mapped_trait').size().reset_index(name='study_count')
+    disease_counts_df.sort_values(by='study_count', ascending=False, inplace=True)
+    disease_table = pa.Table.from_pandas(disease_counts_df)
+    pq.write_table(disease_table, output_disease_file)
+    print(f"Saved disease study counts to {output_disease_file}")
+    print("\nGold layer processing complete! Final data is ready for analysis.")
 
+if __name__ == "__main__":
+    aggregate_gwas_data()
+```
 
+Step 4: Final Analysis & Visualization
+Finally, you can use the Gold layer data to create charts for your blog post.
 
+scripts/analyze_gold_data.py
+```python
+import pandas as pd
+import os
+import matplotlib.pyplot as plt
 
+gold_dir = os.path.join("data", "gold")
+input_file = os.path.join(gold_dir, "disease_study_counts.parquet")
 
+def analyze_and_visualize():
+    try:
+        gold_df = pd.read_parquet(input_file)
+        top_results = gold_df.head(10)
+        print("\nTop 10 most studied diseases/traits:")
+        print(top_results.to_string(index=False))
 
+        top_results.plot(kind='bar', x='mapped_trait', y='study_count', legend=False)
+        plt.title('Top 10 Most Studied Diseases/Traits')
+        plt.xlabel('Disease/Trait')
+        plt.ylabel('Study Count')
+        plt.tight_layout()
+        plt.show()
 
+    except FileNotFoundError:
+        print(f"Error: Gold layer file not found at {input_file}. Please run the gold_transform.py script first.")
+        return
+
+if __name__ == "__main__":
+    analyze_and_visualize()
+```

@@ -1,41 +1,36 @@
-import ftplib
+import requests
 import os
 
-# FTP server host for the 1000 Genomes Project
-ftp_host = "ftp.1000genomes.ebi.ac.uk"
+# Define the source URL for the GWAS Catalog
+url = "https://www.ebi.ac.uk/gwas/api/search/downloads/alternative"
+filename = "gwas_catalog.tsv"
 
-# Define the paths to the VCF and metadata files
-# We will use the base directory for navigation
-base_path = "/vol1/ftp/release/20130502/"
+# Define the Bronze layer directory
+bronze_path = os.path.join("data", "bronze")
+os.makedirs(bronze_path, exist_ok=True)
+local_filepath = os.path.join(bronze_path, filename)
 
-# Define the filenames, which are now relative to the base_path
-vcf_filename = "ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz"
-metadata_filename = "20130502.phase3_shapeit2_mvncall_integrated_v5a.samples.txt"
-
-def download_ftp_file(remote_path, local_filename):
+def download_file(url, local_filepath):
     """
-    Downloads a file from an FTP server by first navigating to the directory.
+    Downloads a file from a URL using the requests library.
     """
-    if os.path.exists(local_filename):
-        print(f"File '{local_filename}' already exists. Skipping download.")
+    if os.path.exists(local_filepath):
+        print(f"File '{local_filepath}' already exists. Skipping download.")
         return
 
+    print(f"Downloading {url} to {local_filepath}...")
     try:
-        with ftplib.FTP(ftp_host) as ftp:
-            ftp.login()
-            ftp.cwd(os.path.dirname(remote_path)) # Change to the correct directory
-            
-            with open(local_filename, 'wb') as local_file:
-                print(f"Downloading {remote_path} to {local_filename}...")
-                # Now use just the filename for the download command
-                ftp.retrbinary(f"RETR {os.path.basename(remote_path)}", local_file.write)
-                print("Download successful!")
+        response = requests.get(url, stream=True)
+        response.raise_for_status()  # Check for HTTP errors
 
-    except ftplib.all_errors as e:
-        print(f"FTP error: {e}")
+        with open(local_filepath, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
 
-# Download the VCF file
-download_ftp_file(os.path.join(base_path, vcf_filename), 'ALL.chr22.vcf.gz')
+        print("Download successful!")
+    except requests.exceptions.RequestException as e:
+        print(f"Error during download: {e}")
 
-# Download the metadata file
-download_ftp_file(os.path.join(base_path, metadata_filename), '1000_genomes_samples.txt')
+# Run the download function
+if __name__ == "__main__":
+    download_file(url, local_filepath)

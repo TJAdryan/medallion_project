@@ -1,3 +1,6 @@
+README.mdx
+Code snippet
+
 # Medallion Architecture with 1000 Genomes Data 🧬
 
 This project demonstrates the **Medallion Architecture** by building a data pipeline to process and transform public genetic data from the 1000 Genomes Project.
@@ -32,3 +35,74 @@ Create a dedicated virtual environment for the project to keep dependencies isol
 
 ```bash
 uv venv
+Activate the environment:
+
+macOS/Linux:
+
+Bash
+
+source .venv/bin/activate
+Windows:
+
+PowerShell
+
+.venv\Scripts\activate
+3. Dependencies
+This project uses standard Python libraries. No extra dependencies are needed.
+
+📦 Project Structure
+The project is organized to reflect the three layers of the Medallion Architecture.
+
+.
+├── .venv/                         # Virtual environment
+├── data/
+│   ├── bronze/                    # Raw data from the source
+│   ├── silver/                    # Cleaned and enriched data
+│   └── gold/                      # Aggregated and finalized data
+├── scripts/
+│   ├── bronze_ingest.py           # Script to download raw data
+│   ├── silver_process.py          # Script to clean and enrich data
+│   └── gold_transform.py          # Script to aggregate data for analysis
+├── README.mdx                     # This documentation file
+└── requirements.txt               # Project dependencies
+🪜 The Pipeline Steps
+Step 1: Bronze Layer - Data Ingestion
+This step involves downloading the raw, compressed VCF file and the metadata file. We will use a simple Python script to handle the download, which represents the first layer of our architecture.
+
+Script: scripts/bronze_ingest.py
+
+Output: data/bronze/ALL.chr22.vcf.gz and data/bronze/1000_genomes_samples.txt
+
+Step 2: Silver Layer - Data Processing & Enrichment
+In this step, we will take the raw files from the bronze layer, decompress the VCF file, and parse its contents. We will then join the variant data with the sample metadata to enrich the dataset.
+
+Script: scripts/silver_process.py
+
+Output: A structured, tabular file (e.g., a Parquet file) in the data/silver/ directory.
+
+Step 3: Gold Layer - Data Transformation
+This final layer aggregates the clean data from the silver layer into a business-ready format. This could involve calculating variant frequencies, summarizing data by population, or creating other insights.
+
+Script: scripts/gold_transform.py
+
+Output: Final, optimized data for analysis, ready for consumption by BI tools or further research.
+
+📝 Blog Post Outline
+This project is the basis for a blog post series on the Medallion Architecture.
+
+Introduction: What is the Medallion Architecture, and why is it important?
+
+Bronze Layer: A walk-through of the data ingestion process.
+
+Silver Layer: The importance of data cleaning and enrichment.
+
+Gold Layer: Creating value from clean data through aggregation.
+
+Conclusion: A summary of the pipeline and the benefits of the Medallion Architecture.
+
+
+
+
+
+
+
